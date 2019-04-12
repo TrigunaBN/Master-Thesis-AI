@@ -16,11 +16,11 @@ The goal of this thesis is to design and evaluate different algorithms to determ
 You will upload data into a datamining software program and design and evaluate algorithms to: <br>
 1. Define the profile of loyal donors: location, age, education, background, does the gift amount play a role? Does a loyal donor always give the same amount? If so, why (not)? <br>
 2. Predict: If a donor donates for the first time, how likely is it that he will give a second time? <br>
-3. Predict: if a donor donates for fund A and B, how likely is it that he will donate for fund C? <br>
-4. Associations: if a donor donates for fund A and B, for which fund is he most likely to donate next? <br>
-5. Patterns: why does a donor only donates once in his donor lifetime cycle in our database? Are there similarities in this type of donations (e.g. is the gift linked to a specific event)? <br>
+3. Association Mining: if a donor donates for fund A and B, how likely is it that he will donate for fund C? <br>
+4. Sequence Mining: if a donor donates for fund A and B, for which fund is he most likely to donate next? <br>
+5. Timeline Analysis: why does a donor only donates once in his donor lifetime cycle in our database? Are there similarities in this type of donations (e.g. is the gift linked to a specific event)? <br>
 6. Patterns: what are the differences in the profile between a loyal donor and a donor that donates once? <br>
-7. Predict: The University Fund divided their gifts into 6 categories: 
+7. Likelihood Estimation: The University Fund divided their gifts into 6 categories: 
     - CAT 1: € 0 – 1.249
     - CAT 2: € 1.250 – 4.999
     - CAT 3: € 5.000 – 14.999
