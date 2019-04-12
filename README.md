@@ -35,7 +35,7 @@ For: <br>
 Question 1 -> Refer 'Profile of Loyal Donors.ipynb' <br>
 Question 2 -> Refer 'Data Preparation & Feature Construction.ipynb' and 'Classification of Donors.ipynb' <br>
 Question 3 & 4 -> Refer 'Associations, Sequence Mining, and Fund Recommendations.ipynb' <br>
-Question 5 -> Refer 'Donation Patterns.ipynb' <br>
+Question 5 -> Refer 'Donation Timeline Analysis.ipynb' <br>
 Question 6 -> Refer 'Donor Feature Analysis.ipynb' <br>
 Question 7 -> Refer 'Donation Category Shifts.ipynb'
 
