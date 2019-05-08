@@ -37,6 +37,7 @@ Question 2 -> Refer 'Data Preparation & Feature Construction.ipynb' and 'Classif
 Question 3 & 4 -> Refer 'Associations, Sequence Mining, and Fund Recommendations.ipynb' <br>
 Question 5 -> Refer 'Donation Timeline Analysis.ipynb' <br>
 Question 6 -> Refer 'Donor Feature Analysis.ipynb' <br>
-Question 7 -> Refer 'Donation Category Shifts.ipynb'
+Question 7 -> Refer 'Donation Category Shifts.ipynb' <br>
 
 
+PS: If you are not able to view the notebook, try copying the notebook link on github and paste it here: https://nbviewer.jupyter.org/
