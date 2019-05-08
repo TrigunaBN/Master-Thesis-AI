@@ -1,0 +1,445 @@
+
+#**********************************************************************************************
+#DONOR LIST #There are total 56897 donors
+CREATE TABLE `test`.`donor_list` (
+  `PARTNER` VARCHAR(10)  NOT NULL,
+   PRIMARY KEY (`PARTNER`));
+insert into test.donor_list
+SELECT DISTINCT BUT000.PARTNER			
+FROM
+    LUF.CRMD_ORDERADM_H
+        INNER JOIN
+    LUF.ZKV_LINKPARTNER ON ZKV_LINKPARTNER.ORDER_GUID = CRMD_ORDERADM_H.GUID
+        INNER JOIN
+    LUF.BUT000 ON ZKV_LINKPARTNER.PARTNER = BUT000.PARTNER
+		INNER JOIN 
+	LUF.CRM_JEST ON LUF>CRMD_ORDERADM_H.GUID = LUF.CRM_JEST.OBJNR
+WHERE
+    CRMD_ORDERADM_H.PROCESS_TYPE = 'ZGFT'
+    AND ZKV_LINKPARTNER.PARTNER_FCT = 'ZLUF0001'
+	AND LUF.CRM_JEST.STAT = 'E0001';	
+
+#****************************************************************************************	
+#Create temporary tables 'scapptseg_docdate' & 'scapptseg_dankbrf' & join these tables and put it in luf.scapptseg_zgft to make it easier to import cfr 8.3.2 code from doc. 		
+CREATE TABLE `temp`.`scapptseg_docdate` (
+  `APPL_GUID` VARCHAR(32) NOT NULL,
+  `ZLUF_DOCDATE` DATETIME NULL,
+  PRIMARY KEY (`APPL_GUID`));
+  
+insert into temp.scapptseg_docdate
+select luf.scapptseg.APPL_GUID, TST_FROM from luf.scapptseg 
+where luf.scapptseg.appt_type='ZLUF_DOCDATE';
+  
+  
+CREATE TABLE `temp`.`scapptseg_dankbrf` (
+  `APPL_GUID` VARCHAR(32) NOT NULL,
+  `ZLUF_DANKBRF` DATETIME NULL,
+  PRIMARY KEY (`APPL_GUID`));
+  
+insert into temp.scapptseg_dankbrf
+select luf.scapptseg.APPL_GUID, TST_FROM from luf.scapptseg 
+where luf.scapptseg.appt_type='ZLUF_DANKBRF';
+
+
+CREATE TABLE `luf`.`scapptseg_zgft` (
+  `APPL_GUID` VARCHAR(32) NOT NULL,
+  `ZLUF_DOCDATE` DATETIME NULL,
+  `ZLUF_DANKBRF` DATETIME NULL,
+  PRIMARY KEY (`APPL_GUID`));
+  
+insert into luf.scapptseg_zgft
+select temp.scapptseg_docdate.appl_guid,
+	temp.scapptseg_docdate.zluf_docdate,
+    temp.scapptseg_dankbrf.zluf_dankbrf
+from temp.scapptseg_docdate 
+inner join temp.scapptseg_dankbrf
+on temp.scapptseg_dankbrf.appl_guid = temp.scapptseg_docdate.appl_guid;
+
+
+
+#******************************Profile of Loyal Donors.ipynb******************************
+#******************************Donor Feature Analysis.ipynb******************************
+#Question1 (question1.csv)             
+CREATE TABLE `test`.`question1` (
+  `PARTNER` VARCHAR(10) NULL,
+  `ZZGEBOORTEJAAR` INT NULL,
+  `TYPE` VARCHAR(1) NULL,
+  `BIRTHPL` VARCHAR(40) NULL,
+  `BU_LANGU` VARCHAR(1) NULL,
+  `NATIO` VARCHAR(45) NULL,
+  `POST_CODE1` VARCHAR(10) NULL,
+  `COUNTRY` VARCHAR(3) NULL,
+  `TITLE_ACADEMDIC` VARCHAR(10) NULL,
+  `TITLE` VARCHAR(10) NULL,
+  `ORDER_GUID` VARBINARY(33) NULL,
+  `ZZAMNT_PAYED` DOUBLE NULL);
+  
+insert into test.question1
+select luf.but000.PARTNER, 
+	   luf.but000.ZZGEBOORTEJAAR,
+       luf.but000.TYPE,
+       luf.but000.BIRTHPL,
+       luf.but000.BU_LANGU,
+       luf.but000.NATIO,
+       luf.adrc.POST_CODE1,
+       luf.adrc.COUNTRY,
+	   luf.but000.TITLE_ACA1,
+       luf.but000.TITLE,
+       luf.zkv_linkpartner.ORDER_GUID,
+       luf.crmd_orderadm_h.ZZAMNT_PAYED
+from luf.but000
+		left outer join luf.but020
+        on luf.but000.PARTNER = luf.but020.PARTNER
+        left outer join luf.adrc
+        on luf.but020.ADDRNUMBER = luf.adrc.ADDRNUMBER
+        inner join luf.zkv_linkpartner
+        on luf.but000.PARTNER = luf.zkv_linkpartner.PARTNER
+        inner join luf.crmd_orderadm_h
+        on luf.zkv_linkpartner.ORDER_GUID = luf.crmd_orderadm_h.GUID
+        inner join luf.crm_jest
+        on luf.crmd_orderadm_h.GUID = luf.crm_jest.OBJNR
+        where luf.crmd_orderadm_h.PROCESS_TYPE = 'ZGFT'
+		and luf.zkv_linkpartner.PARTNER_FCT = 'ZLUF0001'  #Select only donors
+        and luf.crm_jest.STAT = 'E0001'					  #Select only donations where status is Paid (E0001)
+        order by luf.but000.PARTNER asc;
+		
+
+		
+#******************************Data Preparation & Feature Construction.ipynb******************************
+#******************************Donation Timeline Analysis.ipynb******************************
+#Question2 (question2.csv)  
+CREATE TABLE `test`.`question2` (
+	`PARTNER`	varchar(10)	NULL,
+	`TYPE`	varchar(1)	NULL,
+	`ZZGEBOORTEJAAR`	int(11)	NULL,
+	`BIRTHPL`	varchar(40)	NULL,
+	`BU_LANGU`	varchar(1)	NULL,
+    `CNT_ORIGIN`	varchar(10)	NULL,
+    `NATIONALITY`	varchar(10)	NULL,
+    `ZZGEEN_VOORNAAM`	varchar(10)	NULL,
+    `XSEXF`	varchar(10)	NULL,
+    `XSEXM`	varchar(10)	NULL,
+    `LANGU_CORR`	varchar(10)	NULL,
+    `MARST`	varchar(10)	NULL,
+	`TITLE`	varchar(10)	NULL,
+	`TITLE_ACADEMDIC`	varchar(10)	NULL,
+    `COUNTRY`	varchar(10)	NULL,
+    `DEFLT_COMM`	varchar(10)	NULL,
+    `POST_CODE`	varchar(10)	NULL,
+    `ORDER_GUID` varbinary(33) NULL,
+	`ZZAMNT_PAYED`	double	NULL,
+	`ZLUF_DOCDATE`	datetime	NULL,
+	`ZLUF_DANKBRF`	datetime	NULL,
+    `CREATED_BY`	varchar(10)	NULL,
+    `CHANGED_BY`	varchar(10)	NULL,
+    `ZZBANKN_BET`	varchar(60)	NULL,
+    `ZZGESTRUCT_MED`	varchar(50)	NULL,
+	`CREDIT_CATEGORY`	varchar(10)	NULL,
+	`CREDIT_DESCRIPTION`	varchar(99)	NULL,
+	`FISCAAL_ATTEST`	varchar(10)	NULL,
+    `DANKBRIEF`	varchar(10)	NULL,
+    `FISCJAAR`	int(10)	NULL,
+	`GJAHR` int(10)	NULL);
+	#`ORGEENHEID` varchar(99)	NULL); #Don't use this variable
+	
+INSERT INTO test.question2
+SELECT 
+	LUF.BUT000.PARTNER,
+	LUF.BUT000.TYPE,
+	LUF.BUT000.ZZGEBOORTEJAAR,
+	LUF.BUT000.BIRTHPL,					#Can construct Is birthplace known
+	LUF.BUT000.BU_LANGU,				#Can construct Is native language known
+	LUF.BUT000.CNDSC,					#Can construct Is country of origin known
+	LUF.BUT000.NATIO,					#Can construct Is nationality known
+	LUF.BUT000.ZZGEEN_VOORNAAM,			#Can construct Is first name known
+	LUF.BUT000.XSEXF,
+	LUF.BUT000.XSEXM,
+	LUF.BUT000.LANGU_CORR,      		#Can construct Is correspondence language known
+	LUF.BUT000.MARST,					#Can construct Is maritial status known
+	LUF.BUT000.TITLE,					#Can construct Is title known
+	LUF.BUT000.TITLE_ACA1,				#Can construct Is academic title
+	LUF.ADRC.COUNTRY, 					#Country of Donation - 2 Binary features: Donation from BE or from outside BE Or a single binary feature is donation from BE - 1, not - 0
+	LUF.ADRC.DEFLT_COMM,                #Method of communication - LET, TEL, INT. None for TEL (first donation) So create binary feature is MoC = LET
+	LUF.ADRC.POST_CODE1,				#How can I handle this feature? Can I create a binary feature for each major provinces in Belgium? Flemish Brabant, Antwerp, Brussels etc
+	LUF.ZKV_LINKPARTNER.ORDER_GUID,
+	LUF.CRMD_ORDERADM_H.ZZAMNT_PAYED,
+	LUF.scapptseg_zgft.ZLUF_DOCDATE,
+	LUF.scapptseg_zgft.ZLUF_DANKBRF,
+	LUF.CRMD_ORDERADM_H.CREATED_BY,
+	LUF.CRMD_ORDERADM_H.CHANGED_BY,
+	LUF.CRMD_ORDERADM_H.ZZBANKN_BET, 	#Can construct Is bank account of donor available in LUF database after first donation
+	LUF.CRMD_ORDERADM_H.ZZGESTRUCT_MED, #Can construct If VGS is provided or not for first donation
+	LUF.COMM_CATEGORY.CATEGORY_ID, 		#as CREDIT_CATEGORY,
+	LUF.COMM_PRSHTEXT.SHORT_TEXT, 		#as CREDIT_DESCRIPTION
+	LUF.ZKT_LUF_ORD_EXT.FISCAAL_ATTEST, #Is tax certificate needed? (Filter it for first donation) 01 – Tax Eligible; 02 – Tax not-Elligible; 04 – Tax Certificate Sent
+	LUF.ZKT_LUF_ORD_EXT.DANKBRIEF,		#01 - TY letter not needed, 02 - To be sent, 03 - Sent (Not sure about this feature)
+	LUF.ZKT_LUF_ORD_EXT.FISCJAAR,		#Not sure if this feature would be useful
+	LUF.ZKT_LUF_ORD_EXT.GJAHR,			#Not sure if this feature would be useful
+	#LUF.ZKT_LUF_ORD_EXT.ORGEENHEID		#Can construct Is description provided or not
+from luf.but000
+	left outer join luf.but020
+	on luf.but000.PARTNER = luf.but020.PARTNER
+	left outer join luf.adrc
+	on luf.but020.ADDRNUMBER = luf.adrc.ADDRNUMBER
+	inner join luf.zkv_linkpartner
+	on luf.but000.PARTNER = luf.zkv_linkpartner.PARTNER
+	inner join luf.crmd_orderadm_h
+	on luf.zkv_linkpartner.ORDER_GUID = luf.crmd_orderadm_h.GUID
+	inner join luf.crm_jest
+	on luf.crmd_orderadm_h.GUID = luf.crm_jest.OBJNR
+	inner join luf.crmd_link
+	on luf.crmd_orderadm_h.GUID = luf.crmd_link.GUID_HI
+	inner join luf.scapptseg_zgft
+	on luf.crmd_link.GUID_SET = luf.scapptseg_zgft.APPL_GUID
+	left outer join luf.crmd_orderadm_i
+	on luf.crmd_orderadm_i.HEADER = luf.crmd_orderadm_h.GUID
+	left outer join luf.comm_product
+	on luf.crmd_orderadm_i.PRODUCT = luf.comm_product.PRODUCT_GUID
+	left outer join luf.comm_prshtext
+	on luf.comm_product.PRODUCT_GUID = luf.comm_prshtext.PRODUCT_GUID
+	left outer join luf.comm_prprdcatr
+	on luf.comm_product.PRODUCT_GUID = luf.comm_prprdcatr.PRODUCT_GUID
+	left outer join luf.comm_category
+	on luf.comm_prprdcatr.CATEGORY_GUID = luf.comm_category.CATEGORY_GUID
+	inner join luf.zkt_luf_ord_ext
+	on luf.crmd_orderadm_h.GUID = luf.zkt_luf_ord_ext.REF_GUID
+	where luf.crmd_orderadm_h.PROCESS_TYPE = 'ZGFT'
+	and luf.zkv_linkpartner.PARTNER_FCT = 'ZLUF0001'
+	and luf.crm_jest.STAT = 'E0001'
+	order by luf.but000.PARTNER asc;
+
+
+#******************************Associations, Sequence Mining, and Fund Recommendations.ipynb******************************	
+#Questions 3 & 4 (question3.csv)  
+#[*** TOTAL			Sum(ZZAMNT_PAYED) = 138,807,914.47   	Count(Rows) = 131,243]
+#[FUNDS: 			Sum(ZZAMNT_PAYED) = 40,022,602.69 		Count(Rows) = 88,960			UniqueFunds = 221]
+#[CHAIRS: 			Sum(ZZAMNT_PAYED) = 37,223,228.91 		Count(Rows) = 1,717 			UniqueChairs = 131]
+#[OTHER CREDITS: 	Sum(ZZAMNT_PAYED) = 61,429,850.81		Count(Rows) = 40,558				UniqueOtherCredits = 461]
+CREATE TABLE `test`.`question3` (
+	`PARTNER`	varchar(10)	NULL,
+	`ZZGEBOORTEJAAR`	int(11)	NULL,
+	`TYPE`	varchar(1)	NULL,
+	`BIRTHPL`	varchar(40)	NULL,
+	`BU_LANGU`	varchar(1)	NULL,
+	`NATIO`	varchar(45)	NULL,
+	`POST_CODE`	varchar(10)	NULL,
+	`COUNTRY`	varchar(4)	NULL,
+	`TITLE_ACADEMDIC`	varchar(10)	NULL,
+	`TITLE`	varchar(10)	NULL,
+	`ORDER_GUID`	varbinary(33)	NULL,
+	`ZZAMNT_PAYED`	double	NULL,
+	`ZLUF_DOCDATE`	datetime	NULL,
+	`ZLUF_DANKBRF`	datetime	NULL,
+	`CREDIT_CATEGORY`	varchar(10)	NULL,
+	`CREDIT_DESCRIPTION`	varchar(99)	NULL);
+insert into test.question3
+select 
+	luf.but000.PARTNER, 
+	luf.but000.ZZGEBOORTEJAAR,
+	luf.but000.TYPE,
+	luf.but000.BIRTHPL,
+	luf.but000.BU_LANGU,
+	luf.but000.NATIO,
+	luf.adrc.POST_CODE1,
+	luf.adrc.COUNTRY,
+	luf.but000.TITLE_ACA1,
+	luf.but000.TITLE,
+	luf.zkv_linkpartner.ORDER_GUID,
+	luf.crmd_orderadm_h.ZZAMNT_PAYED,
+	luf.scapptseg_zgft.ZLUF_DOCDATE,
+	luf.scapptseg_zgft.ZLUF_DANKBRF,
+	luf.comm_category.CATEGORY_ID, #as CREDIT_CATEGORY,
+	luf.comm_prshtext.SHORT_TEXT #as CREDIT_DESCRIPTION
+from luf.but000
+	left outer join luf.but020
+	on luf.but000.PARTNER = luf.but020.PARTNER
+	left outer join luf.adrc
+	on luf.but020.ADDRNUMBER = luf.adrc.ADDRNUMBER
+	inner join luf.zkv_linkpartner
+	on luf.but000.PARTNER = luf.zkv_linkpartner.PARTNER
+	inner join luf.crmd_orderadm_h
+	on luf.zkv_linkpartner.ORDER_GUID = luf.crmd_orderadm_h.GUID
+	inner join luf.crm_jest
+	on luf.crmd_orderadm_h.GUID = luf.crm_jest.OBJNR
+	inner join luf.crmd_link
+	on luf.crmd_orderadm_h.GUID = luf.crmd_link.GUID_HI
+	inner join luf.scapptseg_zgft
+	on luf.crmd_link.GUID_SET = luf.scapptseg_zgft.APPL_GUID
+	left outer join luf.crmd_orderadm_i
+	on luf.crmd_orderadm_i.HEADER = luf.crmd_orderadm_h.GUID
+	left outer join luf.comm_product
+	on luf.crmd_orderadm_i.PRODUCT = luf.comm_product.PRODUCT_GUID
+	left outer join luf.comm_prshtext
+	on luf.comm_product.PRODUCT_GUID = luf.comm_prshtext.PRODUCT_GUID
+	left outer join luf.comm_prprdcatr
+	on luf.comm_product.PRODUCT_GUID = luf.comm_prprdcatr.PRODUCT_GUID
+	left outer join luf.comm_category
+	on luf.comm_prprdcatr.CATEGORY_GUID = luf.comm_category.CATEGORY_GUID
+	where luf.crmd_orderadm_h.PROCESS_TYPE = 'ZGFT'
+	and luf.zkv_linkpartner.PARTNER_FCT = 'ZLUF0001'
+	and luf.crm_jest.STAT = 'E0001'
+	and luf.comm_category.CATEGORY_ID = '00001'   #Because QUESTION 3 & 4 only cares about Funds!
+	order by luf.but000.PARTNER asc;
+		
+
+		
+#******************************Donation Category Shifts.ipynb******************************
+#******************************Donor Feature Analysis.ipynb******************************
+#Question7 (question7.csv)
+CREATE TABLE `test`.`question7` (
+	`PARTNER`	varchar(10)	NULL,
+	`ZZGEBOORTEJAAR`	int(11)	NULL,
+	`TYPE`	varchar(1)	NULL,
+	`BIRTHPL`	varchar(40)	NULL,
+	`BU_LANGU`	varchar(1)	NULL,
+	`NATIO`	varchar(45)	NULL,
+	`POST_CODE1`	varchar(10)	NULL,
+	`COUNTRY`	varchar(3)	NULL,
+	`TITLE_ACADEMDIC`	varchar(10)	NULL,
+	`TITLE`	varchar(10)	NULL,
+	`ORDER_GUID`	varbinary(33)	NULL,
+	`ZZAMNT_PAYED`	double	NULL,
+	`CREATED_AT` datetime	NULL,
+	`POSTING_DATE` datetime	NULL,
+	`ZLUF_DOCDATE`	datetime	NULL,
+	`ZLUF_DANKBRF`	datetime	NULL,
+	`CREDIT_CATEGORY`	varchar(10)	NULL,
+	`CREDIT_DESCRIPTION`	varchar(99)	NULL);
+insert into test.question7
+select 
+	luf.but000.PARTNER, 
+	luf.but000.ZZGEBOORTEJAAR,
+	luf.but000.TYPE,
+	luf.but000.BIRTHPL,
+	luf.but000.BU_LANGU,
+	luf.but000.NATIO,
+	luf.adrc.POST_CODE1,
+	luf.adrc.COUNTRY,
+	luf.but000.TITLE_ACA1,
+	luf.but000.TITLE,
+	luf.zkv_linkpartner.ORDER_GUID,
+	luf.crmd_orderadm_h.ZZAMNT_PAYED,
+	luf.crmd_orderadm_h.CREATED_AT,
+	luf.crmd_orderadm_h.POSTING_DATE,
+	luf.scapptseg_zgft.ZLUF_DOCDATE,
+	luf.scapptseg_zgft.ZLUF_DANKBRF,
+	luf.comm_category.CATEGORY_ID, #as CREDIT_CATEGORY,
+	luf.comm_prshtext.SHORT_TEXT #as CREDIT_DESCRIPTION
+from luf.but000
+	left outer join luf.but020
+	on luf.but000.PARTNER = luf.but020.PARTNER
+	left outer join luf.adrc
+	on luf.but020.ADDRNUMBER = luf.adrc.ADDRNUMBER
+	inner join luf.zkv_linkpartner
+	on luf.but000.PARTNER = luf.zkv_linkpartner.PARTNER
+	inner join luf.crmd_orderadm_h
+	on luf.zkv_linkpartner.ORDER_GUID = luf.crmd_orderadm_h.GUID
+	inner join luf.crm_jest
+	on luf.crmd_orderadm_h.GUID = luf.crm_jest.OBJNR
+	inner join luf.crmd_link
+	on luf.crmd_orderadm_h.GUID = luf.crmd_link.GUID_HI
+	inner join luf.scapptseg_zgft
+	on luf.crmd_link.GUID_SET = luf.scapptseg_zgft.APPL_GUID
+	left outer join luf.crmd_orderadm_i
+	on luf.crmd_orderadm_i.HEADER = luf.crmd_orderadm_h.GUID
+	left outer join luf.comm_product
+	on luf.crmd_orderadm_i.PRODUCT = luf.comm_product.PRODUCT_GUID
+	left outer join luf.comm_prshtext
+	on luf.comm_product.PRODUCT_GUID = luf.comm_prshtext.PRODUCT_GUID
+	left outer join luf.comm_prprdcatr
+	on luf.comm_product.PRODUCT_GUID = luf.comm_prprdcatr.PRODUCT_GUID
+	left outer join luf.comm_category
+	on luf.comm_prprdcatr.CATEGORY_GUID = luf.comm_category.CATEGORY_GUID
+	where luf.crmd_orderadm_h.PROCESS_TYPE = 'ZGFT'
+	and luf.zkv_linkpartner.PARTNER_FCT = 'ZLUF0001'
+	and luf.crm_jest.STAT = 'E0001'
+	order by luf.but000.PARTNER asc;
+
+
+#*******************************************************************************************************
+#Credit Properties
+CREATE TABLE `test`.`credit_properties` (
+  `PRODUCT_ID` VARCHAR(40) NULL,
+  `CREDIT_DESCRIPTION` VARCHAR(99) NULL, #SHORT_TEXT,
+  `CATEGORY_ID` VARCHAR(20) NULL,
+  `PROPERTY_VALUE` VARCHAR(6) NULL, #ATTR_VALUE
+  `PROPERTY_ID` VARCHAR(20) NULL,   #FRGTYPE_ID
+  `PROPERTY_VALUE_DESC` VARCHAR(90) NULL   #DDTEXT
+  );
+insert into test.credit_properties
+SELECT #Themes
+    COMM_PRODUCT.PRODUCT_ID, COMM_PRSHTEXT.SHORT_TEXT, COMM_CATEGORY.CATEGORY_ID, ZCRD_ATTR000002.ATTR_VALUE, ZKV_PR_SETTYPE.FRGTYPE_ID, DD07T.DDTEXT
+FROM
+    LUF.COMM_PRODUCT 
+	LEFT OUTER JOIN LUF.COMM_PRSHTEXT ON COMM_PRODUCT.PRODUCT_GUID = COMM_PRSHTEXT.PRODUCT_GUID
+    INNER JOIN LUF.COMM_PRPRDCATR ON COMM_PRODUCT.PRODUCT_GUID = COMM_PRPRDCATR.PRODUCT_GUID
+    INNER JOIN LUF.COMM_CATEGORY ON COMM_PRPRDCATR.CATEGORY_GUID = COMM_CATEGORY.CATEGORY_GUID
+    LEFT OUTER JOIN LUF.ZKV_PR_SETTYPE ON COMM_PRODUCT.PRODUCT_GUID = ZKV_PR_SETTYPE.PRODUCT_GUID AND ZKV_PR_SETTYPE.FRGTYPE_ID = 'ZLUF_THEMAS'
+    LEFT OUTER JOIN LUF.ZCRD_ATTR000002 ON ZKV_PR_SETTYPE.FRAGMENT_GUID = ZCRD_ATTR000002.OBJECT_GUID
+    LEFT OUTER JOIN LUF.DD07T ON ZCRD_ATTR000002.ATTR_VALUE = DD07T.DOMVALUE_L AND DD07T.DDLANGUAGE = 'N' AND DD07T.DOMNAME = 'ZLUF_THEMA'
+union
+SELECT #Groups/Service
+    COMM_PRODUCT.PRODUCT_ID, COMM_PRSHTEXT.SHORT_TEXT, COMM_CATEGORY.CATEGORY_ID, ZCRD_ATTR000003.ATTR_VALUE, ZKV_PR_SETTYPE.FRGTYPE_ID, DD07T.DDTEXT
+FROM
+    LUF.COMM_PRODUCT 
+	LEFT OUTER JOIN LUF.COMM_PRSHTEXT ON COMM_PRODUCT.PRODUCT_GUID = COMM_PRSHTEXT.PRODUCT_GUID
+    INNER JOIN LUF.COMM_PRPRDCATR ON COMM_PRODUCT.PRODUCT_GUID = COMM_PRPRDCATR.PRODUCT_GUID
+    INNER JOIN LUF.COMM_CATEGORY ON COMM_PRPRDCATR.CATEGORY_GUID = COMM_CATEGORY.CATEGORY_GUID
+    LEFT OUTER JOIN LUF.ZKV_PR_SETTYPE ON COMM_PRODUCT.PRODUCT_GUID = ZKV_PR_SETTYPE.PRODUCT_GUID AND ZKV_PR_SETTYPE.FRGTYPE_ID = 'ZLUF_GROEPDIEN'
+    LEFT OUTER JOIN LUF.ZCRD_ATTR000003 ON ZKV_PR_SETTYPE.FRAGMENT_GUID = ZCRD_ATTR000003.OBJECT_GUID
+    LEFT OUTER JOIN LUF.DD07T ON ZCRD_ATTR000003.ATTR_VALUE = DD07T.DOMVALUE_L AND DD07T.DDLANGUAGE = 'N' AND DD07T.DOMNAME = 'ZLUF_GROEP'
+union
+SELECT #Organisational units
+    COMM_PRODUCT.PRODUCT_ID, COMM_PRSHTEXT.SHORT_TEXT, COMM_CATEGORY.CATEGORY_ID, ZCRD_ATTR000004.ATTR_VALUE, ZKV_PR_SETTYPE.FRGTYPE_ID, DD07T.DDTEXT
+FROM
+	LUF.COMM_PRODUCT 
+	LEFT OUTER JOIN LUF.COMM_PRSHTEXT ON COMM_PRODUCT.PRODUCT_GUID = COMM_PRSHTEXT.PRODUCT_GUID
+    INNER JOIN LUF.COMM_PRPRDCATR ON COMM_PRODUCT.PRODUCT_GUID = COMM_PRPRDCATR.PRODUCT_GUID
+    INNER JOIN LUF.COMM_CATEGORY ON COMM_PRPRDCATR.CATEGORY_GUID = COMM_CATEGORY.CATEGORY_GUID
+    LEFT OUTER JOIN LUF.ZKV_PR_SETTYPE ON COMM_PRODUCT.PRODUCT_GUID = ZKV_PR_SETTYPE.PRODUCT_GUID AND ZKV_PR_SETTYPE.FRGTYPE_ID = 'ZLUF_EENHEDEN'
+    LEFT OUTER JOIN LUF.ZCRD_ATTR000004 ON ZKV_PR_SETTYPE.FRAGMENT_GUID = ZCRD_ATTR000004.OBJECT_GUID
+    LEFT OUTER JOIN LUF.DD07T ON ZCRD_ATTR000004.ATTR_VALUE = DD07T.DOMVALUE_L AND DD07T.DDLANGUAGE = 'N' AND DD07T.DOMNAME = 'ZLUF_EENHEID'
+union
+SELECT #Locations
+    COMM_PRODUCT.PRODUCT_ID, COMM_PRSHTEXT.SHORT_TEXT, COMM_CATEGORY.CATEGORY_ID, ZCRD_ATTR000005.ATTR_VALUE, ZKV_PR_SETTYPE.FRGTYPE_ID, DD07T.DDTEXT
+FROM
+    LUF.COMM_PRODUCT 
+	LEFT OUTER JOIN LUF.COMM_PRSHTEXT ON COMM_PRODUCT.PRODUCT_GUID = COMM_PRSHTEXT.PRODUCT_GUID
+    INNER JOIN LUF.COMM_PRPRDCATR ON COMM_PRODUCT.PRODUCT_GUID = COMM_PRPRDCATR.PRODUCT_GUID
+    INNER JOIN LUF.COMM_CATEGORY ON COMM_PRPRDCATR.CATEGORY_GUID = COMM_CATEGORY.CATEGORY_GUID
+    LEFT OUTER JOIN LUF.ZKV_PR_SETTYPE ON COMM_PRODUCT.PRODUCT_GUID = ZKV_PR_SETTYPE.PRODUCT_GUID AND ZKV_PR_SETTYPE.FRGTYPE_ID = 'ZLUF_LOCATIES'
+    LEFT OUTER JOIN LUF.ZCRD_ATTR000005 ON ZKV_PR_SETTYPE.FRAGMENT_GUID = ZCRD_ATTR000005.OBJECT_GUID
+    LEFT OUTER JOIN LUF.DD07T ON ZCRD_ATTR000005.ATTR_VALUE = DD07T.DOMVALUE_L AND DD07T.DDLANGUAGE = 'N' AND DD07T.DOMNAME = 'ZLUF_LOCATIE'
+
+
+#*******************************************************************************************************
+#MOVES (MOVE_DETAILS)
+CREATE TABLE `test`.`move_details` (
+  `PARTNER` VARCHAR(10) NULL,
+  `POSTING_DATE` DATETIME NULL, 
+  `DIRECTION` VARCHAR(2) NULL,
+  `TYPE` VARCHAR(6) NULL, 
+  `FASE` VARCHAR(6) NULL,   
+  `CYCLUS` VARCHAR(6) NULL   
+  );
+insert into test.move_details
+SELECT 
+    BUT000.PARTNER,
+    CRMD_ORDERADM_H.POSTING_DATE,
+    CRMD_ACTIVITY_H.DIRECTION,
+    ZKT_LUF_ORD_EXT.TYPE,
+    ZKT_LUF_ORD_EXT.FASE,
+    ZKT_LUF_ORD_EXT.CYCLUS
+FROM
+    LUF.BUT000
+    INNER JOIN LUF.ZKV_LINKPARTNER
+    ON LUF.BUT000.PARTNER = LUF.ZKV_LINKPARTNER.PARTNER
+	INNER JOIN LUF.CRMD_ORDERADM_H
+    ON LUF.ZKV_LINKPARTNER.ORDER_GUID = LUF.CRMD_ORDERADM_H.GUID
+	INNER JOIN LUF.ZKT_LUF_ORD_EXT
+    ON LUF.CRMD_ORDERADM_H.GUID = LUF.ZKT_LUF_ORD_EXT.REF_GUID
+    INNER JOIN LUF.CRMD_ACTIVITY_H
+    ON LUF.CRMD_ORDERADM_H.GUID = LUF.CRMD_ACTIVITY_H.GUID
+WHERE LUF.CRMD_ORDERADM_H.PROCESS_TYPE = 'ZMOV'
+
+	
